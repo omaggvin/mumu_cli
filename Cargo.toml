@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Rust wrapper for the MuMu Player command-line tool (mumu)"
 license = "MIT"
-repository = "https://github.com/aggvin/mumu_cli"
+repository = "https://github.com/omaggvin/mumu_cli"
 keywords = ["mumu", "android", "emulator", "automation"]
 categories = ["os", "api-bindings"]
 
