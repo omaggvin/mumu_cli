@@ -4,9 +4,10 @@ mod types;
 pub use error::{MumuError, Result};
 pub use types::{ControlAction, PlayerInfo, SimuKey, VmIndex};
 
-use std::{collections::BTreeMap, path::PathBuf};
+use std::{collections::BTreeMap, path::{Path, PathBuf}};
 use tokio::process::Command;
 
+#[derive(Clone)]
 pub struct MumuCli {
     exe: PathBuf,
 }
@@ -31,7 +32,7 @@ impl MumuCli {
         }
         Ok(out.stdout)
     }
-
+    
     async fn run_text(&self, args: &[&str]) -> Result<String> {
         Ok(String::from_utf8(self.run(args).await?)?)
     }
@@ -139,6 +140,29 @@ impl MumuCli {
         self.run_text(&["adb", "--vmindex", &i, "--cmd", cmd]).await
     }
 
+    /// Write arbitrary bytes to a path on the Android filesystem.
+    /// Uses base64 to avoid backslash-stripping in the sh --cmd pipeline.
+    pub async fn write_file(&self, index: u32, remote_path: &str, content: &[u8]) -> Result<()> {
+        use base64::prelude::*;
+        let encoded = BASE64_STANDARD.encode(content);
+        self.sh(index, &format!("echo {encoded} | base64 -d > {remote_path}")).await?;
+        Ok(())
+    }
+
+    /// Find the adb.exe bundled with this MuMu installation.
+    /// Only meaningful when MumuCli was constructed with a full exe path.
+    pub fn find_adb(&self) -> Option<PathBuf> {
+        let mumu_dir = self.exe.parent()?.parent()?;
+        let nx_device = mumu_dir.join("nx_device");
+        for entry in std::fs::read_dir(&nx_device).ok()?.flatten() {
+            let candidate = entry.path().join("shell").join("adb.exe");
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+        None
+    }
+
     // ── simulation ────────────────────────────────────────────────────────────
 
     pub async fn simulate(
@@ -164,5 +188,76 @@ impl MumuCli {
     pub async fn sort(&self) -> Result<()> {
         self.run(&["sort"]).await?;
         Ok(())
+    }
+
+    // ── import / export ───────────────────────────────────────────────────────
+
+    /// Import a `.mumudata` file into slot `slot`.
+    /// Corresponds to: `mumu import -p <path> -n <slot>`
+    pub async fn import(&self, path: &Path, slot: u32) -> Result<()> {
+        let p = path.to_string_lossy();
+        let n = slot.to_string();
+        self.run(&["import", "--path", &p, "--number", &n]).await?;
+        Ok(())
+    }
+
+    /// Export slot `vmindex` as a `.mumudata` file into `dir`.
+    /// `name` sets the output filename (without extension); `zip` uses compressed format.
+    pub async fn export(
+        &self,
+        vmindex: impl Into<VmIndex>,
+        dir: &Path,
+        name: Option<&str>,
+        zip: bool,
+    ) -> Result<()> {
+        let idx = vmindex.into().to_arg();
+        let d = dir.to_string_lossy();
+        let mut args = vec!["export", "--vmindex", &idx, "--dir", &d];
+        if let Some(n) = name {
+            args.extend_from_slice(&["--name", n]);
+        }
+        if zip {
+            args.push("--zip");
+        }
+        self.run(&args).await?;
+        Ok(())
+    }
+
+    // ── setting ───────────────────────────────────────────────────────────────
+
+    /// Apply one or more key-value settings to a slot in a single invocation.
+    /// Corresponds to: `mumu setting -v <vmindex> -k k1 -val v1 [-k k2 -val v2 ...]`
+    pub async fn setting_set(
+        &self,
+        vmindex: impl Into<VmIndex>,
+        pairs: &[(&str, &str)],
+    ) -> Result<()> {
+        let idx = vmindex.into().to_arg();
+        let mut args = vec!["setting", "--vmindex", &idx];
+        for (k, v) in pairs {
+            args.extend_from_slice(&["--key", k, "--value", v]);
+        }
+        self.run(&args).await?;
+        Ok(())
+    }
+
+    /// Apply settings from a UTF-8 JSON file.
+    /// Corresponds to: `mumu setting -v <vmindex> -p <path>`
+    pub async fn setting_from_file(
+        &self,
+        vmindex: impl Into<VmIndex>,
+        path: &Path,
+    ) -> Result<()> {
+        let idx = vmindex.into().to_arg();
+        let p = path.to_string_lossy();
+        self.run(&["setting", "--vmindex", &idx, "--path", &p]).await?;
+        Ok(())
+    }
+
+    /// List all writable setting keys for a slot (returns raw JSON output).
+    /// Corresponds to: `mumu setting -v <vmindex> -aw`
+    pub async fn setting_all_writable(&self, vmindex: impl Into<VmIndex>) -> Result<String> {
+        let idx = vmindex.into().to_arg();
+        self.run_text(&["setting", "--vmindex", &idx, "--all_writable"]).await
     }
 }
