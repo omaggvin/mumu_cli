@@ -1,0 +1,662 @@
+
+{
+  "product_version": {
+    "desc": "product version",
+    "readable": true,
+    "writable": false
+  },
+  "core_version": {
+    "desc": "core version",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_width.min": {
+    "desc": "resolution width for min",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_width.max": {
+    "desc": "resolution width for max",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_height.min": {
+    "desc": "resolution height for min",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_height.max": {
+    "desc": "resolution height for max",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_dpi.min": {
+    "desc": "resolution dpi for min",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_dpi.max": {
+    "desc": "resolution dpi for max",
+    "readable": true,
+    "writable": false
+  },
+  "performance_cpu.list": {
+    "desc": "performance cpu for list",
+    "readable": true,
+    "writable": false
+  },
+  "performance_mem.list": {
+    "desc": "performance mem for list",
+    "readable": true,
+    "writable": false
+  },
+  "vm_cpu": {
+    "desc": "current vm cpu",
+    "readable": true,
+    "writable": false
+  },
+  "vm_mem": {
+    "desc": "current vm memory",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_width": {
+    "desc": "current resolutin width",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_height": {
+    "desc": "current resolutin height",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_dpi": {
+    "desc": "current resolutin dpi",
+    "readable": true,
+    "writable": false
+  },
+  "player_name": {
+    "desc": "current player name",
+    "readable": true,
+    "writable": true
+  },
+  "renderer_mode": {
+    "desc": "renderer mode",
+    "option_values": [
+      "vk",
+      "dx"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "renderer_strategy": {
+    "desc": "renderer strategy",
+    "option_values": [
+      "auto",
+      "perf",
+      "dis"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "force_discrete_graphics": {
+    "desc": "force discrete graphics",
+    "option_values": [
+      "true",
+      "false"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "screen_brightness.min": {
+    "desc": "screen brightness for min",
+    "readable": true,
+    "writable": false
+  },
+  "screen_brightness.max": {
+    "desc": "screen brightness for max",
+    "readable": true,
+    "writable": false
+  },
+  "screen_brightness": {
+    "desc": "screen brightness",
+    "readable": true,
+    "writable": true
+  },
+  "max_frame_rate": {
+    "desc": "max frame rate",
+    "readable": true,
+    "writable": true
+  },
+  "dynamic_adjust_frame_rate": {
+    "desc": "dynamic adjust frame rate",
+    "option_values": [
+      "true",
+      "false"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "dynamic_low_frame_rate_limit": {
+    "desc": "dynamic low frame rate limit",
+    "readable": true,
+    "writable": true
+  },
+  "dynamic_low_frame_rate_limit.list": {
+    "desc": "dynamic low frame rate limit for list",
+    "readable": true,
+    "writable": false
+  },
+  "show_frame_rate": {
+    "desc": "show frame rate",
+    "option_values": [
+      "true",
+      "false"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "vertical_sync": {
+    "desc": "vertical sync",
+    "option_values": [
+      "true",
+      "false"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "window_auto_rotate": {
+    "desc": "window auto rotate",
+    "option_values": [
+      "true",
+      "false"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "window_save_rect": {
+    "desc": "window auto save rect",
+    "option_values": [
+      "true",
+      "false"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "window_size_fixed": {
+    "desc": "window size fixed",
+    "option_values": [
+      "true",
+      "false"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "system_disk_readonly": {
+    "desc": "system disk readonly",
+    "option_values": [
+      "true",
+      "false"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "system_volume_close": {
+    "desc": "system volume close",
+    "option_values": [
+      "true",
+      "false"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "app_keptlive": {
+    "desc": "app keptlive",
+    "option_values": [
+      "true",
+      "false"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "root_permission": {
+    "desc": "root permission",
+    "option_values": [
+      "true",
+      "false"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "mini_disk": {
+    "desc": "mini disk",
+    "option_values": [
+      "true",
+      "false"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "mouse_style": {
+    "desc": "using mouse style",
+    "option_values": [
+      "true",
+      "false"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "joystick_auto_connect": {
+    "desc": "joystick auto connect",
+    "option_values": [
+      "true",
+      "false"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "apk_asscciation": {
+    "desc": "apk asscciation",
+    "option_values": [
+      "true",
+      "false"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "quit_confirm": {
+    "desc": "quit confirm",
+    "option_values": [
+      "true",
+      "false"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "phone_brand": {
+    "desc": "phone brand",
+    "readable": true,
+    "writable": true
+  },
+  "phone_model": {
+    "desc": "phone model",
+    "readable": true,
+    "writable": true
+  },
+  "phone_miit": {
+    "desc": "phone miit",
+    "readable": true,
+    "writable": true
+  },
+  "phone_imei": {
+    "desc": "phone imei",
+    "readable": true,
+    "writable": true
+  },
+  "phone_number": {
+    "desc": "phone number",
+    "readable": true,
+    "writable": true
+  },
+  "net_bridge.enabled": {
+    "desc": "network bridge enabled for enabled",
+    "readable": true,
+    "writable": false
+  },
+  "net_bridge_card.list": {
+    "desc": "network bridge cards list for list",
+    "readable": true,
+    "writable": false
+  },
+  "net_bridge_open": {
+    "desc": "network bridge open",
+    "option_values": [
+      "true",
+      "false"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "net_bridge_ip_mode": {
+    "desc": "network bridge ip model select",
+    "option_values": [
+      "dhcp",
+      "static"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "net_bridge_ip_addr": {
+    "desc": "network bridge ip address",
+    "readable": true,
+    "writable": true
+  },
+  "net_bridge_gateway": {
+    "desc": "network bridge gateway",
+    "readable": true,
+    "writable": true
+  },
+  "net_bridge_subnet_mask": {
+    "desc": "network bridge subnet mask",
+    "readable": true,
+    "writable": true
+  },
+  "net_bridge_dns1": {
+    "desc": "network bridge dns1",
+    "readable": true,
+    "writable": true
+  },
+  "net_bridge_dns2": {
+    "desc": "network bridge dns2",
+    "readable": true,
+    "writable": true
+  },
+  "net_bridge_card": {
+    "desc": "network bridge current card",
+    "readable": true,
+    "writable": true
+  },
+  "performance_mode": {
+    "desc": "performance mode",
+    "option_values": [
+      "low",
+      "middle",
+      "high",
+      "custom"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "performance_cpu.low": {
+    "desc": "performance cpu for low",
+    "readable": true,
+    "writable": false
+  },
+  "performance_mem.low": {
+    "desc": "performance memory for low",
+    "readable": true,
+    "writable": false
+  },
+  "performance_cpu.middle": {
+    "desc": "performance cpu for middle",
+    "readable": true,
+    "writable": false
+  },
+  "performance_mem.middle": {
+    "desc": "performance memory for middle",
+    "readable": true,
+    "writable": false
+  },
+  "performance_cpu.high": {
+    "desc": "performance cpu for high",
+    "readable": true,
+    "writable": false
+  },
+  "performance_mem.high": {
+    "desc": "performance memory for high",
+    "readable": true,
+    "writable": false
+  },
+  "performance_cpu.custom": {
+    "desc": "performance cpu for custom",
+    "readable": true,
+    "writable": true
+  },
+  "performance_mem.custom": {
+    "desc": "performance memory for custom",
+    "readable": true,
+    "writable": true
+  },
+  "gpu_mode": {
+    "desc": "gpu mode",
+    "option_values": [
+      "low",
+      "middle",
+      "high",
+      "custom"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "gpu_model.low": {
+    "desc": "gpu model for low",
+    "readable": true,
+    "writable": false
+  },
+  "gpu_model.middle": {
+    "desc": "gpu model for middle",
+    "readable": true,
+    "writable": false
+  },
+  "gpu_model.high": {
+    "desc": "gpu model for high",
+    "readable": true,
+    "writable": false
+  },
+  "gpu_model.custom": {
+    "desc": "gpu model for custom",
+    "readable": true,
+    "writable": true
+  },
+  "resolution_mode": {
+    "desc": "resolution mode, using: $mode$.$index$, like: tablet.1",
+    "option_values": [
+      "tablet",
+      "phone",
+      "widescreen",
+      "custom"
+    ],
+    "readable": true,
+    "writable": true
+  },
+  "resolution_width.tablet.0": {
+    "desc": "resolution tablet width for index 0",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_height.tablet.0": {
+    "desc": "resolution tablet height for index 0",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_dpi.tablet.0": {
+    "desc": "resolution tablet dpi for index 0",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_width.tablet.1": {
+    "desc": "resolution tablet width for index 1",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_height.tablet.1": {
+    "desc": "resolution tablet height for index 1",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_dpi.tablet.1": {
+    "desc": "resolution tablet dpi for index 1",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_width.tablet.2": {
+    "desc": "resolution tablet width for index 2",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_height.tablet.2": {
+    "desc": "resolution tablet height for index 2",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_dpi.tablet.2": {
+    "desc": "resolution tablet dpi for index 2",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_width.tablet.3": {
+    "desc": "resolution tablet width for index 3",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_height.tablet.3": {
+    "desc": "resolution tablet height for index 3",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_dpi.tablet.3": {
+    "desc": "resolution tablet dpi for index 3",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_width.phone.0": {
+    "desc": "resolution phone width for index 0",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_height.phone.0": {
+    "desc": "resolution phone height for index 0",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_dpi.phone.0": {
+    "desc": "resolution phone dpi for index 0",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_width.phone.1": {
+    "desc": "resolution phone width for index 1",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_height.phone.1": {
+    "desc": "resolution phone height for index 1",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_dpi.phone.1": {
+    "desc": "resolution phone dpi for index 1",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_width.phone.2": {
+    "desc": "resolution phone width for index 2",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_height.phone.2": {
+    "desc": "resolution phone height for index 2",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_dpi.phone.2": {
+    "desc": "resolution phone dpi for index 2",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_width.phone.3": {
+    "desc": "resolution phone width for index 3",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_height.phone.3": {
+    "desc": "resolution phone height for index 3",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_dpi.phone.3": {
+    "desc": "resolution phone dpi for index 3",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_width.widescreen.0": {
+    "desc": "resolution widescreen width for index 0",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_height.widescreen.0": {
+    "desc": "resolution widescreen height for index 0",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_dpi.widescreen.0": {
+    "desc": "resolution widescreen dpi for index 0",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_width.widescreen.1": {
+    "desc": "resolution widescreen width for index 1",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_height.widescreen.1": {
+    "desc": "resolution widescreen height for index 1",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_dpi.widescreen.1": {
+    "desc": "resolution widescreen dpi for index 1",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_width.widescreen.2": {
+    "desc": "resolution widescreen width for index 2",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_height.widescreen.2": {
+    "desc": "resolution widescreen height for index 2",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_dpi.widescreen.2": {
+    "desc": "resolution widescreen dpi for index 2",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_width.widescreen.3": {
+    "desc": "resolution widescreen width for index 3",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_height.widescreen.3": {
+    "desc": "resolution widescreen height for index 3",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_dpi.widescreen.3": {
+    "desc": "resolution widescreen dpi for index 3",
+    "readable": true,
+    "writable": false
+  },
+  "resolution_width.custom": {
+    "desc": "resolution custom width",
+    "readable": true,
+    "writable": true
+  },
+  "resolution_height.custom": {
+    "desc": "resolution custom height",
+    "readable": true,
+    "writable": true
+  },
+  "resolution_dpi.custom": {
+    "desc": "resolution custom dpi",
+    "readable": true,
+    "writable": true
+  },
+  "device_create_timestamp": {
+    "desc": "device create timestamp",
+    "readable": true,
+    "writable": false
+  },
+  "device_thumbnail": {
+    "desc": "device thumbnail",
+    "readable": true,
+    "writable": false
+  },
+  "device_sort_type": {
+    "desc": "device sort type",
+    "readable": true,
+    "writable": false
+  }
+}
