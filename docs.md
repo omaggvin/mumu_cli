@@ -44,6 +44,12 @@ slot.is_running()       // VM process alive
 slot.is_android_ready() // Android has booted
 ```
 
+Vital fact (real hardware, 2026-07-03): MuMu's `info` output changes *shape*
+with the result count — an index-keyed map for multiple instances, but one
+**bare object** when the result is exactly one instance (including
+`--vmindex all` on a PC with a single instance). `parse_info_output` accepts
+both; anything else parsing MuMu `info` JSON must too.
+
 ## Control
 
 ```rust

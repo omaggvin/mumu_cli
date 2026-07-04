@@ -57,19 +57,29 @@ impl MumuCli {
     // ── info ──────────────────────────────────────────────────────────────────
 
     /// Returns a map of slot index → [`PlayerInfo`] for the given `vmindex`.
+    ///
+    /// MuMu's `info` output changes *shape* with the result count
+    /// (real-hardware fact, 2026-07-03): an index-keyed map when it covers
+    /// multiple instances, but a single **bare object** when there is
+    /// exactly one — including `--vmindex all` on a PC with one instance.
+    /// Both shapes are accepted here; the bare object's own `index` field
+    /// supplies its key.
     pub async fn info(&self, vmindex: impl Into<VmIndex>) -> Result<BTreeMap<u32, PlayerInfo>> {
         let idx = vmindex.into().to_arg();
         let raw = self.run_text(&["info", "--vmindex", &idx]).await?;
-        let map: std::collections::HashMap<String, PlayerInfo> = serde_json::from_str(&raw)?;
-        Ok(map
-            .into_iter()
-            .filter_map(|(k, v)| k.parse::<u32>().ok().map(|i| (i, v)))
-            .collect())
+        parse_info_output(&raw)
     }
 
     /// Returns info for every slot.
     pub async fn info_all(&self) -> Result<BTreeMap<u32, PlayerInfo>> {
         self.info(VmIndex::All).await
+    }
+
+    /// Raw `info --vmindex <index>` output, unparsed — diagnostics only
+    /// (pcc's `mumu_diag`), so field/shape surprises are visible verbatim.
+    pub async fn info_raw(&self, index: u32) -> Result<String> {
+        let i = index.to_string();
+        self.run_text(&["info", "--vmindex", &i]).await
     }
 
     /// Returns info for a single slot. Errors if the slot is not found in the response.
@@ -215,6 +225,41 @@ impl MumuCli {
         Ok(())
     }
 
+    // ── apk install ──────────────────────────────────────────────────────────
+
+    /// Installs (or upgrades in place — same as dragging an APK onto the
+    /// emulator window: existing app data/login survive) an APK onto slot
+    /// `index`.
+    ///
+    /// `write_file`'s `sh`-through-base64 pipeline can't carry a
+    /// multi-hundred-MB binary (it would blow past the shell command-length
+    /// limit long before reaching an APK's size), so this shells out to the
+    /// MuMu-bundled `adb.exe` directly against the slot's own adb endpoint
+    /// (`info_one`'s `adb_host_ip`/`adb_port`) and runs a real
+    /// `adb install -r`, which streams the file over the ADB wire protocol
+    /// instead of a shell string.
+    pub async fn install_apk(&self, index: u32, apk_path: &Path) -> Result<()> {
+        let info = self.info_one(index).await?;
+        let (Some(host), Some(port)) = (info.adb_host_ip, info.adb_port) else {
+            return Err(MumuError::AdbEndpointUnavailable);
+        };
+        let adb = self.find_adb().ok_or(MumuError::AdbExeNotFound)?;
+        let serial = format!("{host}:{port}");
+        let path_str = apk_path.to_string_lossy();
+
+        let out = Command::new(&adb)
+            .args(["-s", &serial, "install", "-r", &path_str])
+            .output()
+            .await?;
+        let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+        let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+        if out.status.success() && stdout.contains("Success") {
+            Ok(())
+        } else {
+            Err(MumuError::InstallFailed(format!("{stdout}{stderr}")))
+        }
+    }
+
     // ── sort ──────────────────────────────────────────────────────────────────
 
     /// Tile all player windows on screen.
@@ -312,5 +357,64 @@ impl MumuCli {
         let str_pairs: Vec<(&str, &str)> =
             pairs.iter().map(|(k, v)| (*k, v.as_str())).collect();
         self.setting_set(vmindex, &str_pairs).await
+    }
+}
+
+/// Parses `MuMuManager info` output into an index-keyed map, accepting both
+/// output shapes (see [`MumuCli::info`]): the multi-instance index-keyed
+/// map, and the bare single object MuMu emits when the result is exactly
+/// one instance.
+fn parse_info_output(raw: &str) -> Result<BTreeMap<u32, PlayerInfo>> {
+    if let Ok(map) = serde_json::from_str::<std::collections::HashMap<String, PlayerInfo>>(raw) {
+        return Ok(map
+            .into_iter()
+            .filter_map(|(k, v)| k.parse::<u32>().ok().map(|i| (i, v)))
+            .collect());
+    }
+    let one: PlayerInfo = serde_json::from_str(raw)?;
+    let Ok(i) = one.index.parse::<u32>() else {
+        return Err(MumuError::NonZeroExit {
+            code: None,
+            stderr: format!("info returned unparseable index {:?}", one.index),
+        });
+    };
+    Ok(BTreeMap::from([(i, one)]))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Verbatim `MuMuManager info --vmindex all` output from i9tjnr with a
+    /// single instance (2026-07-03) — a bare object, not an index-keyed map.
+    const SINGLE_RAW: &str = r#"{
+  "index": "0",
+  "name": "omaggviw@o1",
+  "is_main": true,
+  "error_code": 0,
+  "disk_size_bytes": 4067478846,
+  "created_timestamp": 1782734046011375,
+  "is_android_started": false,
+  "is_process_started": false,
+  "hyperv_enabled": true
+}"#;
+
+    #[test]
+    fn single_instance_bare_object_parses() {
+        let map = parse_info_output(SINGLE_RAW).expect("bare object must parse");
+        assert_eq!(map.len(), 1);
+        assert_eq!(map[&0].name, "omaggviw@o1");
+    }
+
+    #[test]
+    fn multi_instance_keyed_map_parses() {
+        let raw = format!(r#"{{ "0": {SINGLE_RAW}, "3": {SINGLE_RAW} }}"#);
+        let map = parse_info_output(&raw).expect("keyed map must parse");
+        assert_eq!(map.keys().copied().collect::<Vec<_>>(), vec![0, 3]);
+    }
+
+    #[test]
+    fn garbage_is_an_error_not_a_panic() {
+        assert!(parse_info_output("not json").is_err());
     }
 }
