@@ -26,7 +26,7 @@ dv_0u32-path: new("./backups"), Some("slot0"), true
 ---
 # mumu_cli
 
-Async Rust wrapper around the `MuMuManager.exe` CLI (`mumu` on PATH). Lets server-side code control MuMu Player emulator slots without shelling out manually.
+Async Rust wrapper around the `MuMuManager.exe` CLI (`mumu` on PATH). Lets server-side code control MuMu Player emulator slots without shelling out manually. This file is the wrapper's own Rust API — for the underlying `MuMuManager.exe` CLI itself (raw subcommands/args this wrapper shells out to), see `mumu_cli_docs.md`.
 
 ## Construction
 
@@ -157,6 +157,19 @@ cli.rename(0, "MySlot").await?;
 cli.sh(0, "getprop ro.build.version.release").await?;
 cli.adb(0, "connect").await?;
 cli.write_file(0, "/sdcard/script.lua", bytes).await?;
+
+// Install an APK / pull a file or directory off the device — both shell
+// out directly to the bundled adb.exe (not MuMuManager's own adb/sh
+// subcommands), since a multi-hundred-MB APK or a whole directory doesn't
+// fit write_file's base64-through-shell pipeline. Both need find_adb() to
+// have resolved (constructed with a full exe path).
+cli.install_apk(0, Path::new("roblox.apk")).await?;
+cli.pull(0, "/storage/emulated/0/Delta/Internals", Path::new("./cache")).await?;
+// Vital fact (real hardware, 2026-07-04): pulling a directory nests the
+// source's basename under the destination — the call above lands at
+// ./cache/Internals/..., not ./cache/... directly. `pull` itself does no
+// flattening; callers that want a flat destination handle it themselves
+// (see pc_controller's `handle_pull_asset`).
 
 // Spoof device identity (pass None to clear)
 cli.simulate(0, SimuKey::Imei, Some("123456789012345")).await?;

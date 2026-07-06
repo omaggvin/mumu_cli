@@ -16,6 +16,8 @@ pub enum MumuError {
     AdbEndpointUnavailable,
     #[error("adb install failed: {0}")]
     InstallFailed(String),
+    #[error("adb pull failed: {0}")]
+    PullFailed(String),
 }
 
 pub type Result<T> = std::result::Result<T, MumuError>;

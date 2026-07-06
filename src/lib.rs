@@ -260,6 +260,34 @@ impl MumuCli {
         }
     }
 
+    /// Pulls a file or directory off slot `index` at `remote` (an absolute
+    /// on-device path) down to `local`. Same "MuMu's own wrapper can't do
+    /// this" rationale as [`Self::install_apk`] — shells directly to the
+    /// bundled `adb.exe` for a real `adb pull`, which handles whole
+    /// directories natively instead of a size-fragile write_file/base64/sh
+    /// round trip.
+    pub async fn pull(&self, index: u32, remote: &str, local: &Path) -> Result<()> {
+        let info = self.info_one(index).await?;
+        let (Some(host), Some(port)) = (info.adb_host_ip, info.adb_port) else {
+            return Err(MumuError::AdbEndpointUnavailable);
+        };
+        let adb = self.find_adb().ok_or(MumuError::AdbExeNotFound)?;
+        let serial = format!("{host}:{port}");
+        let local_str = local.to_string_lossy();
+
+        let out = Command::new(&adb)
+            .args(["-s", &serial, "pull", remote, &local_str])
+            .output()
+            .await?;
+        let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+        let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+        if out.status.success() {
+            Ok(())
+        } else {
+            Err(MumuError::PullFailed(format!("{stdout}{stderr}")))
+        }
+    }
+
     // ── sort ──────────────────────────────────────────────────────────────────
 
     /// Tile all player windows on screen.
