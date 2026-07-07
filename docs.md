@@ -1,29 +1,3 @@
----
-dv_VmIndex:
-  - Many(vec![0,1,2]), ControlAction::Launch
-  - One(5)
-  - All, ControlAction::Shutdown
-  - Many(vec![1,3]), ControlAction::Restart
-dv_Setting:
-  - MaxFrameRate(15),
-  - PerformanceCpuCustom(2),
-  - PerformanceMemCustom(2.0),
-  - SystemDiskReadonly(true),
-dv_RendererMode: Vulkan
-dv_PerformanceMode: Custom
-dv_ResolutionMode: Tablet
-dv_0, Path: new("my_settings.json")
-dv_0, SimuKey:
-  - Imei, Some("123456789012345")
-  - AndroidId, None
-dv_Path: new("backup.mumudata")
-dv_0u32, Path: new("./backups"), Some("slot0"), true
-dv_0-path: new("my_settings.json")
-dv_0-simukey:
-  - Imei, Some("123456789012345")
-  - AndroidId, None
-dv_0u32-path: new("./backups"), Some("slot0"), true
----
 # mumu_cli
 
 Async Rust wrapper around the `MuMuManager.exe` CLI (`mumu` on PATH). Lets server-side code control MuMu Player emulator slots without shelling out manually. This file is the wrapper's own Rust API — for the underlying `MuMuManager.exe` CLI itself (raw subcommands/args this wrapper shells out to), see `mumu_cli_docs.md`.
