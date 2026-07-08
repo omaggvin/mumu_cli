@@ -89,6 +89,8 @@ OPTIONS:
   -p, --path <path>        .mumudata file path. (one or more)
   -n, --number <number>    Number of action run.
 
+Vital: import cannot target a slot — always creates a NEW instance; -n is a repeat count, not an index (10 ⇒ ten copies).
+
 ---
 
 ### export

@@ -14,13 +14,16 @@ let cli = MumuCli::new("C:/path/to/MuMuManager.exe");
 ```rust
 let all: BTreeMap<u32, PlayerInfo> = cli.info_all().await?;
 let slot: PlayerInfo = cli.info_one(0).await?;
+let some = cli.info(VmIndex::Many(vec![0, 1])).await?; // generic: any VmIndex → BTreeMap
+let raw: String = cli.info_raw(0).await?;  // unparsed, diagnostics only (pcc mumu_diag)
+let ver: String = cli.version().await?;    // MuMu player version string
 slot.is_running()       // VM process alive
 slot.is_android_ready() // Android has booted
 ```
 
-Vital fact (real hardware, 2026-07-03): MuMu's `info` output changes *shape*
+Vital fact (verified on real hardware): MuMu's `info` output changes *shape*
 with the result count — an index-keyed map for multiple instances, but one
-**bare object** when the result is exactly one instance (including
+bare object when the result is exactly one instance (including
 `--vmindex all` on a PC with a single instance). `parse_info_output` accepts
 both; anything else parsing MuMu `info` JSON must too.
 
@@ -139,11 +142,10 @@ cli.write_file(0, "/sdcard/script.lua", bytes).await?;
 // have resolved (constructed with a full exe path). Both wait for the
 // daemon to report the slot's endpoint as `device` first (up to 20s,
 // redialing a stuck `offline` entry once) — a freshly-booted instance
-// flaps `offline` for a few seconds (i9tjnr 2026-07-08, failed a chain's
-// install_roblox right after start_placement).
+// flaps `offline` for a few seconds.
 cli.install_apk(0, Path::new("roblox.apk")).await?;
 cli.pull(0, "/storage/emulated/0/Delta/Internals", Path::new("./cache")).await?;
-// Vital fact (real hardware, 2026-07-04): pulling a directory nests the
+// Vital fact (verified on real hardware): pulling a directory nests the
 // source's basename under the destination — the call above lands at
 // ./cache/Internals/..., not ./cache/... directly. `pull` itself does no
 // flattening; callers that want a flat destination handle it themselves
