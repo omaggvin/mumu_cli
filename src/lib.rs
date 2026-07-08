@@ -7,7 +7,7 @@ pub use types::{
     RendererStrategy, ResolutionMode, Setting, SimuKey, VmIndex,
 };
 
-use std::{collections::BTreeMap, path::{Path, PathBuf}};
+use std::{collections::BTreeMap, path::{Path, PathBuf}, time::Duration};
 use tokio::process::Command;
 
 /// Async wrapper around the `MuMuManager.exe` CLI (`mumu` on PATH).
@@ -225,6 +225,48 @@ impl MumuCli {
         Ok(())
     }
 
+    /// [`Self::install_apk`]/[`Self::pull`] talk to the slot's TCP adb
+    /// endpoint directly, and a freshly-booted instance regularly sits as
+    /// `offline` in the daemon's device list for a few seconds (a chain's
+    /// `install_roblox` right after `start_placement` failed with "adb.exe:
+    /// device offline" on i9tjnr, 2026-07-08 — the same fresh-boot flap
+    /// `kill_roblox`/`write_delta_file` were moved to NemuShell for, but
+    /// there's no shell path for streaming an APK or pulling a directory).
+    /// Connects the endpoint (idempotent) and polls `get-state` until the
+    /// daemon reports `device`, redialing once on a stuck `offline` entry.
+    async fn ensure_adb_ready(&self, adb: &Path, serial: &str) -> Result<()> {
+        const READY_TIMEOUT: Duration = Duration::from_secs(20);
+        const POLL: Duration = Duration::from_secs(1);
+
+        let _ = Command::new(adb).args(["connect", serial]).output().await?;
+        let deadline = tokio::time::Instant::now() + READY_TIMEOUT;
+        let mut redialed = false;
+        loop {
+            let out = Command::new(adb).args(["-s", serial, "get-state"]).output().await?;
+            let last = format!(
+                "{}{}",
+                String::from_utf8_lossy(&out.stdout).trim(),
+                String::from_utf8_lossy(&out.stderr).trim()
+            );
+            if last == "device" {
+                return Ok(());
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return Err(MumuError::AdbDeviceNotReady {
+                    serial: serial.to_string(),
+                    secs: READY_TIMEOUT.as_secs(),
+                    last,
+                });
+            }
+            if !redialed && last.contains("offline") {
+                let _ = Command::new(adb).args(["disconnect", serial]).output().await;
+                let _ = Command::new(adb).args(["connect", serial]).output().await;
+                redialed = true;
+            }
+            tokio::time::sleep(POLL).await;
+        }
+    }
+
     // ── apk install ──────────────────────────────────────────────────────────
 
     /// Installs (or upgrades in place — same as dragging an APK onto the
@@ -245,6 +287,7 @@ impl MumuCli {
         };
         let adb = self.find_adb().ok_or(MumuError::AdbExeNotFound)?;
         let serial = format!("{host}:{port}");
+        self.ensure_adb_ready(&adb, &serial).await?;
         let path_str = apk_path.to_string_lossy();
 
         let out = Command::new(&adb)
@@ -273,6 +316,7 @@ impl MumuCli {
         };
         let adb = self.find_adb().ok_or(MumuError::AdbExeNotFound)?;
         let serial = format!("{host}:{port}");
+        self.ensure_adb_ready(&adb, &serial).await?;
         let local_str = local.to_string_lossy();
 
         let out = Command::new(&adb)

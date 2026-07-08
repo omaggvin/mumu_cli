@@ -136,7 +136,11 @@ cli.write_file(0, "/sdcard/script.lua", bytes).await?;
 // out directly to the bundled adb.exe (not MuMuManager's own adb/sh
 // subcommands), since a multi-hundred-MB APK or a whole directory doesn't
 // fit write_file's base64-through-shell pipeline. Both need find_adb() to
-// have resolved (constructed with a full exe path).
+// have resolved (constructed with a full exe path). Both wait for the
+// daemon to report the slot's endpoint as `device` first (up to 20s,
+// redialing a stuck `offline` entry once) — a freshly-booted instance
+// flaps `offline` for a few seconds (i9tjnr 2026-07-08, failed a chain's
+// install_roblox right after start_placement).
 cli.install_apk(0, Path::new("roblox.apk")).await?;
 cli.pull(0, "/storage/emulated/0/Delta/Internals", Path::new("./cache")).await?;
 // Vital fact (real hardware, 2026-07-04): pulling a directory nests the
