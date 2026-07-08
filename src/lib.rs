@@ -179,11 +179,51 @@ impl MumuCli {
     /// Write arbitrary bytes to `remote_path` on the Android filesystem of slot `index`.
     ///
     /// Uses base64 encoding to avoid backslash-stripping in the `sh --cmd` pipeline.
+    ///
+    /// Windows caps a process command line near 32 KB, and `MuMuManager.exe`
+    /// fails with "error 206" once `sh --cmd <one-shot>` crosses it — about
+    /// 24 KB of content after base64's 4/3 inflation. Below the cap the file
+    /// goes in the original single `echo … | base64 -d` command, byte for
+    /// byte as before. Above it the base64 is streamed to a temp file in
+    /// safe-sized chunks (`echo >`/`>>`) and decoded once, so an oversized
+    /// write that used to fail now succeeds without changing the path any
+    /// currently-working write takes. base64's alphabet has no shell-special
+    /// chars, and `base64 -d` ignores the newlines `echo` inserts between
+    /// chunks.
     pub async fn write_file(&self, index: u32, remote_path: &str, content: &[u8]) -> Result<()> {
+        // Conservative headroom under the ~32 KB Windows command-line ceiling;
+        // every real write today (loader, config, licence, worker Lua) is a
+        // few KB and stays on the single-command path.
+        const CMD_BUDGET: usize = 28_000;
+        for cmd in Self::write_file_cmds(remote_path, content, CMD_BUDGET) {
+            self.sh(index, &cmd).await?;
+        }
+        Ok(())
+    }
+
+    /// Builds the `sh` command(s) [`Self::write_file`] runs. Pure (no device
+    /// I/O) so the chunk boundaries and base64 round-trip stay unit-testable.
+    /// `budget` bounds the length of any single command.
+    fn write_file_cmds(remote_path: &str, content: &[u8], budget: usize) -> Vec<String> {
         use base64::prelude::*;
         let encoded = BASE64_STANDARD.encode(content);
-        self.sh(index, &format!("echo {encoded} | base64 -d > {remote_path}")).await?;
-        Ok(())
+        let one_shot = format!("echo {encoded} | base64 -d > {remote_path}");
+        if one_shot.len() <= budget {
+            return vec![one_shot];
+        }
+        let tmp = format!("{remote_path}.omna_b64");
+        // Room for `echo `, ` >> `, and the temp path in each chunk command.
+        let chunk_len = budget.saturating_sub(tmp.len() + 16).max(1);
+        let mut cmds = Vec::new();
+        let mut first = true;
+        for chunk in encoded.as_bytes().chunks(chunk_len) {
+            let chunk = std::str::from_utf8(chunk).expect("base64 output is ascii");
+            let redir = if first { ">" } else { ">>" };
+            cmds.push(format!("echo {chunk} {redir} {tmp}"));
+            first = false;
+        }
+        cmds.push(format!("base64 -d {tmp} > {remote_path} && rm -f {tmp}"));
+        cmds
     }
 
     /// Find the `adb.exe` bundled with this MuMu installation.
@@ -488,5 +528,46 @@ mod tests {
     #[test]
     fn garbage_is_an_error_not_a_panic() {
         assert!(parse_info_output("not json").is_err());
+    }
+
+    #[test]
+    fn write_file_small_stays_single_command() {
+        let cmds = MumuCli::write_file_cmds("/storage/emulated/0/Delta/x", b"hello world", 28_000);
+        assert_eq!(cmds.len(), 1);
+        assert!(cmds[0].starts_with("echo "));
+        assert!(cmds[0].ends_with("| base64 -d > /storage/emulated/0/Delta/x"));
+    }
+
+    #[test]
+    fn write_file_large_chunks_reconstruct_content() {
+        use base64::prelude::*;
+        // ~80 KB of non-trivial bytes forces the chunked path.
+        let content: Vec<u8> = (0..80_000u32).map(|i| (i.wrapping_mul(31) % 251) as u8).collect();
+        let budget = 28_000;
+        let path = "/storage/emulated/0/Delta/big.bin";
+        let cmds = MumuCli::write_file_cmds(path, &content, budget);
+
+        assert!(cmds.len() > 2, "large content must chunk");
+        for c in &cmds {
+            assert!(c.len() <= budget, "command exceeds budget: {} > {budget}", c.len());
+        }
+
+        // Replay the commands the way the device would: each chunk command is
+        // `echo <chunk> >|>> <tmp>` with whitespace-free tokens, so split(' ')
+        // recovers the base64; concatenating them and decoding must yield the
+        // original bytes.
+        let (decode_cmd, echo_cmds) = cmds.split_last().unwrap();
+        let mut b64 = String::new();
+        for (i, c) in echo_cmds.iter().enumerate() {
+            let parts: Vec<&str> = c.split(' ').collect();
+            assert_eq!(parts[0], "echo");
+            assert_eq!(parts[2], if i == 0 { ">" } else { ">>" }, "wrong redirect on chunk {i}");
+            b64.push_str(parts[1]);
+        }
+        assert!(decode_cmd.starts_with("base64 -d "));
+        assert!(decode_cmd.contains(&format!("> {path}")));
+
+        let decoded = BASE64_STANDARD.decode(b64.as_bytes()).expect("reassembled base64 must decode");
+        assert_eq!(decoded, content, "chunked write must reconstruct the original bytes");
     }
 }
