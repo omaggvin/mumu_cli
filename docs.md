@@ -134,6 +134,8 @@ cli.rename(0, "MySlot").await?;
 cli.sh(0, "getprop ro.build.version.release").await?;
 cli.adb(0, "connect").await?;
 cli.write_file(0, "/sdcard/script.lua", bytes).await?;
+// `adb --cmd` cannot take quoted compound commands (tokenization breaks, exit 127).
+// NemuShell `sh` accepts pipes/redirects but swallows their stdout (verify via a follow-up read).
 
 // Install an APK / pull a file or directory off the device — both shell
 // out directly to the bundled adb.exe (not MuMuManager's own adb/sh
