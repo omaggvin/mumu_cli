@@ -82,8 +82,8 @@ impl MumuCli {
         self.info(VmIndex::All).await
     }
 
-    /// Raw `info --vmindex <index>` output, unparsed — diagnostics only
-    /// (pcc's `mumu_diag`), so field/shape surprises are visible verbatim.
+    /// Raw `info --vmindex <index>` output, unparsed — diagnostics only,
+    /// so field/shape surprises are visible verbatim.
     pub async fn info_raw(&self, index: SlotIndex) -> Result<String> {
         let i = index.to_string();
         self.run_text(&["info", "--vmindex", &i]).await
@@ -207,7 +207,7 @@ impl MumuCli {
         content: &[u8],
     ) -> Result<()> {
         // Conservative headroom under the ~32 KB Windows command-line ceiling;
-        // every real write today (loader, config, licence, worker Lua) is a
+        // every real write today (loaders, configs, small scripts) is a
         // few KB and stays on the single-command path.
         const CMD_BUDGET: usize = 28_000;
         for cmd in Self::write_file_cmds(remote_path, content, CMD_BUDGET) {
@@ -285,11 +285,10 @@ impl MumuCli {
 
     /// [`Self::install_apk`]/[`Self::pull`] talk to the slot's TCP adb
     /// endpoint directly, and a freshly-booted instance regularly sits as
-    /// `offline` in the daemon's device list for a few seconds (a chain's
-    /// `install_roblox` right after `start_placement` failed with "adb.exe:
-    /// device offline" on i9tjnr, 2026-07-08 — the same fresh-boot flap
-    /// `kill_roblox`/`write_delta_file` were moved to NemuShell for, but
-    /// there's no shell path for streaming an APK or pulling a directory).
+    /// `offline` in the daemon's device list for a few seconds (observed on
+    /// real hardware, 2026-07-08: an install right after VM boot failed with
+    /// "adb.exe: device offline"; the shell channel dodges the flap but has
+    /// no path for streaming an APK or pulling a directory).
     /// Connects the endpoint (idempotent) and polls `get-state` until the
     /// daemon reports `device`, redialing once on a stuck `offline` entry.
     async fn ensure_adb_ready(&self, adb: &Path, serial: &str) -> Result<()> {

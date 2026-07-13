@@ -1,6 +1,6 @@
 # mumu_cli
 
-Async Rust wrapper around the `MuMuManager.exe` CLI (`mumu` on PATH). Lets server-side code control MuMu Player emulator slots without shelling out manually. This file is the wrapper's own Rust API — for the underlying `MuMuManager.exe` CLI itself (raw subcommands/args this wrapper shells out to), see `mumu_cli_docs.md`.
+Async Rust wrapper around the `MuMuManager.exe` CLI (`mumu` on PATH). Controls MuMu Player emulator slots without shelling out manually. This file is the wrapper's own Rust API — for the underlying `MuMuManager.exe` CLI itself (raw subcommands/args this wrapper shells out to), see `mumu_cli_docs.md`.
 
 ## Construction
 
@@ -16,7 +16,7 @@ let s0 = SlotIndex::new(0); // typed slot index — the API takes no bare u32
 let all: BTreeMap<SlotIndex, PlayerInfo> = cli.info_all().await?;
 let slot: PlayerInfo = cli.info_one(s0).await?;
 let some = cli.info(VmIndex::Many(vec![s0, SlotIndex::new(1)])).await?; // generic: any VmIndex → BTreeMap
-let raw: String = cli.info_raw(s0).await?;  // unparsed, diagnostics only (pcc mumu_diag)
+let raw: String = cli.info_raw(s0).await?;  // unparsed, diagnostics only
 let ver: String = cli.version().await?;    // MuMu player version string
 slot.is_running()       // VM process alive
 slot.is_android_ready() // Android has booted
@@ -151,16 +151,15 @@ cli.pull(s0, "/storage/emulated/0/Delta/Internals", Path::new("./cache")).await?
 // Vital fact (verified on real hardware): pulling a directory nests the
 // source's basename under the destination — the call above lands at
 // ./cache/Internals/..., not ./cache/... directly. `pull` itself does no
-// flattening; callers that want a flat destination handle it themselves
-// (see pc_controller's `handle_pull_asset`).
+// flattening; callers that want a flat destination handle it themselves.
 
 // Spoof device identity (pass None to clear)
 cli.simulate(s0, SimuKey::Imei, Some("123456789012345")).await?;
 cli.simulate(s0, SimuKey::AndroidId, None).await?;
 
 // Import / export .mumudata backups.
-// import always creates ONE NEW instance — MuMuManager has no
-// import-into-slot concept. Diff info_all before/after for the new index.
+// import semantics: see mumu_cli_docs.md's `import` section. Diff
+// info_all before/after for the new instance's index.
 cli.import(Path::new("backup.mumudata")).await?;
 cli.export(s0, Path::new("./backups"), Some("slot0"), true).await?;
 
