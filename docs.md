@@ -12,10 +12,11 @@ let cli = MumuCli::new("C:/path/to/MuMuManager.exe");
 ## Slot info
 
 ```rust
-let all: BTreeMap<u32, PlayerInfo> = cli.info_all().await?;
-let slot: PlayerInfo = cli.info_one(0).await?;
-let some = cli.info(VmIndex::Many(vec![0, 1])).await?; // generic: any VmIndex → BTreeMap
-let raw: String = cli.info_raw(0).await?;  // unparsed, diagnostics only (pcc mumu_diag)
+let s0 = SlotIndex::new(0); // typed slot index — the API takes no bare u32
+let all: BTreeMap<SlotIndex, PlayerInfo> = cli.info_all().await?;
+let slot: PlayerInfo = cli.info_one(s0).await?;
+let some = cli.info(VmIndex::Many(vec![s0, SlotIndex::new(1)])).await?; // generic: any VmIndex → BTreeMap
+let raw: String = cli.info_raw(s0).await?;  // unparsed, diagnostics only (pcc mumu_diag)
 let ver: String = cli.version().await?;    // MuMu player version string
 slot.is_running()       // VM process alive
 slot.is_android_ready() // Android has booted
@@ -30,12 +31,12 @@ both; anything else parsing MuMu `info` JSON must too.
 ## Control
 
 ```rust
-cli.launch(0).await?;
-cli.shutdown(0).await?;
-cli.restart(0).await?;
-cli.show_window(0).await?;
-cli.hide_window(0).await?;
-cli.control(VmIndex::Many(vec![0,1,2]), ControlAction::Launch).await?;
+cli.launch(s0).await?;
+cli.shutdown(s0).await?;
+cli.restart(s0).await?;
+cli.show_window(s0).await?;
+cli.hide_window(s0).await?;
+cli.control(VmIndex::Many(slots), ControlAction::Launch).await?;
 ```
 
 ## Settings
@@ -43,7 +44,7 @@ cli.control(VmIndex::Many(vec![0,1,2]), ControlAction::Launch).await?;
 Typed API — use `Setting` variants, pass a slice to `setting_apply`:
 
 ```rust
-cli.setting_apply(0, &[
+cli.setting_apply(s0, &[
     Setting::MaxFrameRate(15),
     Setting::RendererMode(RendererMode::Vulkan),
     Setting::PerformanceMode(PerformanceMode::Custom),
@@ -57,19 +58,19 @@ cli.setting_apply(0, &[
 Raw string pairs (escape hatch):
 
 ```rust
-cli.setting_set(0, &[("max_frame_rate", "15")]).await?;
+cli.setting_set(s0, &[("max_frame_rate", "15")]).await?;
 ```
 
 From a JSON file (same format as `--all_writable` output):
 
 ```rust
-cli.setting_from_file(0, Path::new("my_settings.json")).await?;
+cli.setting_from_file(s0, Path::new("my_settings.json")).await?;
 ```
 
 Inspect current values:
 
 ```rust
-let json: String = cli.setting_all_writable(0).await?;
+let json: String = cli.setting_all_writable(s0).await?;
 ```
 
 ### Setting enum variants
@@ -125,15 +126,15 @@ let json: String = cli.setting_all_writable(0).await?;
 
 ```rust
 // Create / clone / delete / rename
-cli.create(2, false).await?;
-cli.clone_player(0u32, 3).await?;
-cli.delete(VmIndex::One(5)).await?;
-cli.rename(0, "MySlot").await?;
+cli.create(2, false).await?;              // counts stay u32
+cli.clone_player(s0, 3).await?;
+cli.delete(SlotIndex::new(5)).await?;
+cli.rename(s0, "MySlot").await?;
 
 // Shell / ADB
-cli.sh(0, "getprop ro.build.version.release").await?;
-cli.adb(0, "connect").await?;
-cli.write_file(0, "/sdcard/script.lua", bytes).await?;
+cli.sh(s0, "getprop ro.build.version.release").await?;
+cli.adb(s0, "connect").await?;
+cli.write_file(s0, "/sdcard/script.lua", bytes).await?;
 // `adb --cmd` cannot take quoted compound commands (tokenization breaks, exit 127).
 // NemuShell `sh` accepts pipes/redirects but swallows their stdout (verify via a follow-up read).
 
@@ -145,8 +146,8 @@ cli.write_file(0, "/sdcard/script.lua", bytes).await?;
 // daemon to report the slot's endpoint as `device` first (up to 20s,
 // redialing a stuck `offline` entry once) — a freshly-booted instance
 // flaps `offline` for a few seconds.
-cli.install_apk(0, Path::new("roblox.apk")).await?;
-cli.pull(0, "/storage/emulated/0/Delta/Internals", Path::new("./cache")).await?;
+cli.install_apk(s0, Path::new("roblox.apk")).await?;
+cli.pull(s0, "/storage/emulated/0/Delta/Internals", Path::new("./cache")).await?;
 // Vital fact (verified on real hardware): pulling a directory nests the
 // source's basename under the destination — the call above lands at
 // ./cache/Internals/..., not ./cache/... directly. `pull` itself does no
@@ -154,14 +155,14 @@ cli.pull(0, "/storage/emulated/0/Delta/Internals", Path::new("./cache")).await?;
 // (see pc_controller's `handle_pull_asset`).
 
 // Spoof device identity (pass None to clear)
-cli.simulate(0, SimuKey::Imei, Some("123456789012345")).await?;
-cli.simulate(0, SimuKey::AndroidId, None).await?;
+cli.simulate(s0, SimuKey::Imei, Some("123456789012345")).await?;
+cli.simulate(s0, SimuKey::AndroidId, None).await?;
 
 // Import / export .mumudata backups.
 // import always creates ONE NEW instance — MuMuManager has no
 // import-into-slot concept. Diff info_all before/after for the new index.
 cli.import(Path::new("backup.mumudata")).await?;
-cli.export(0u32, Path::new("./backups"), Some("slot0"), true).await?;
+cli.export(s0, Path::new("./backups"), Some("slot0"), true).await?;
 
 // Tile all windows
 cli.sort().await?;
@@ -170,12 +171,14 @@ cli.sort().await?;
 if let Some(adb) = cli.find_adb() { /* ... */ }
 ```
 
-## VmIndex
+## SlotIndex / VmIndex
 
-Methods accepting `impl Into<VmIndex>` take a bare `u32` for a single slot:
+`SlotIndex` (= `Idx<Slot>`, a phantom-typed u32) is the only way slot numbers enter or leave the API — no bare `u32` indices. `SlotIndex::new(n)` / `.get()` at the edges; serializes as the bare number. Future index kinds get their own `Idx<Marker>` alias.
+
+Methods accepting `impl Into<VmIndex>` take a `SlotIndex` or `Vec<SlotIndex>` directly:
 
 ```rust
-cli.launch(0).await?;                           // u32 → VmIndex::One
+cli.launch(SlotIndex::new(0)).await?;           // SlotIndex → VmIndex::One
 cli.control(VmIndex::All, ControlAction::Shutdown).await?;
-cli.control(VmIndex::Many(vec![1,3]), ControlAction::Restart).await?;
+cli.control(slots, ControlAction::Restart).await?; // Vec<SlotIndex> → VmIndex::Many
 ```

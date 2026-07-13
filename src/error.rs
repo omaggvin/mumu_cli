@@ -15,7 +15,11 @@ pub enum MumuError {
     #[error("slot has no adb_host_ip/adb_port yet (not booted?)")]
     AdbEndpointUnavailable,
     #[error("adb device {serial} not ready after {secs}s (last state: {last})")]
-    AdbDeviceNotReady { serial: String, secs: u64, last: String },
+    AdbDeviceNotReady {
+        serial: String,
+        secs: u64,
+        last: String,
+    },
     #[error("adb install failed: {0}")]
     InstallFailed(String),
     #[error("adb pull failed: {0}")]

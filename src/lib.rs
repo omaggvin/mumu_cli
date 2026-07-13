@@ -3,8 +3,8 @@ mod types;
 
 pub use error::{MumuError, Result};
 pub use types::{
-    ControlAction, GpuMode, NetBridgeIpMode, PerformanceMode, PlayerInfo, RendererMode,
-    RendererStrategy, ResolutionMode, Setting, SimuKey, VmIndex,
+    ControlAction, GpuMode, Idx, NetBridgeIpMode, PerformanceMode, PlayerInfo, RendererMode,
+    RendererStrategy, ResolutionMode, Setting, SimuKey, Slot, SlotIndex, VmIndex,
 };
 
 use std::{
@@ -68,26 +68,29 @@ impl MumuCli {
     /// exactly one — including `--vmindex all` on a PC with one instance.
     /// Both shapes are accepted here; the bare object's own `index` field
     /// supplies its key.
-    pub async fn info(&self, vmindex: impl Into<VmIndex>) -> Result<BTreeMap<u32, PlayerInfo>> {
+    pub async fn info(
+        &self,
+        vmindex: impl Into<VmIndex>,
+    ) -> Result<BTreeMap<SlotIndex, PlayerInfo>> {
         let idx = vmindex.into().to_arg();
         let raw = self.run_text(&["info", "--vmindex", &idx]).await?;
         parse_info_output(&raw)
     }
 
     /// Returns info for every slot.
-    pub async fn info_all(&self) -> Result<BTreeMap<u32, PlayerInfo>> {
+    pub async fn info_all(&self) -> Result<BTreeMap<SlotIndex, PlayerInfo>> {
         self.info(VmIndex::All).await
     }
 
     /// Raw `info --vmindex <index>` output, unparsed — diagnostics only
     /// (pcc's `mumu_diag`), so field/shape surprises are visible verbatim.
-    pub async fn info_raw(&self, index: u32) -> Result<String> {
+    pub async fn info_raw(&self, index: SlotIndex) -> Result<String> {
         let i = index.to_string();
         self.run_text(&["info", "--vmindex", &i]).await
     }
 
     /// Returns info for a single slot. Errors if the slot is not found in the response.
-    pub async fn info_one(&self, index: u32) -> Result<PlayerInfo> {
+    pub async fn info_one(&self, index: SlotIndex) -> Result<PlayerInfo> {
         self.info(VmIndex::One(index))
             .await?
             .remove(&index)
@@ -108,27 +111,27 @@ impl MumuCli {
     }
 
     /// Launch the VM for slot `index`.
-    pub async fn launch(&self, index: u32) -> Result<()> {
+    pub async fn launch(&self, index: SlotIndex) -> Result<()> {
         self.control(index, ControlAction::Launch).await
     }
 
     /// Shut down the VM for slot `index`.
-    pub async fn shutdown(&self, index: u32) -> Result<()> {
+    pub async fn shutdown(&self, index: SlotIndex) -> Result<()> {
         self.control(index, ControlAction::Shutdown).await
     }
 
     /// Restart the VM for slot `index`.
-    pub async fn restart(&self, index: u32) -> Result<()> {
+    pub async fn restart(&self, index: SlotIndex) -> Result<()> {
         self.control(index, ControlAction::Restart).await
     }
 
     /// Show the player window for slot `index`.
-    pub async fn show_window(&self, index: u32) -> Result<()> {
+    pub async fn show_window(&self, index: SlotIndex) -> Result<()> {
         self.control(index, ControlAction::ShowWindow).await
     }
 
     /// Hide the player window for slot `index`.
-    pub async fn hide_window(&self, index: u32) -> Result<()> {
+    pub async fn hide_window(&self, index: SlotIndex) -> Result<()> {
         self.control(index, ControlAction::HideWindow).await
     }
 
@@ -162,7 +165,7 @@ impl MumuCli {
     }
 
     /// Rename slot `index` to `name`.
-    pub async fn rename(&self, index: u32, name: &str) -> Result<()> {
+    pub async fn rename(&self, index: SlotIndex, name: &str) -> Result<()> {
         let i = index.to_string();
         self.run(&["rename", "--vmindex", &i, "--name", name])
             .await?;
@@ -172,13 +175,13 @@ impl MumuCli {
     // ── sh / adb ──────────────────────────────────────────────────────────────
 
     /// Run a shell command inside slot `index` and return stdout.
-    pub async fn sh(&self, index: u32, cmd: &str) -> Result<String> {
+    pub async fn sh(&self, index: SlotIndex, cmd: &str) -> Result<String> {
         let i = index.to_string();
         self.run_text(&["sh", "--vmindex", &i, "--cmd", cmd]).await
     }
 
     /// Run an ADB command against slot `index` and return stdout.
-    pub async fn adb(&self, index: u32, cmd: &str) -> Result<String> {
+    pub async fn adb(&self, index: SlotIndex, cmd: &str) -> Result<String> {
         let i = index.to_string();
         self.run_text(&["adb", "--vmindex", &i, "--cmd", cmd]).await
     }
@@ -197,7 +200,12 @@ impl MumuCli {
     /// currently-working write takes. base64's alphabet has no shell-special
     /// chars, and `base64 -d` ignores the newlines `echo` inserts between
     /// chunks.
-    pub async fn write_file(&self, index: u32, remote_path: &str, content: &[u8]) -> Result<()> {
+    pub async fn write_file(
+        &self,
+        index: SlotIndex,
+        remote_path: &str,
+        content: &[u8],
+    ) -> Result<()> {
         // Conservative headroom under the ~32 KB Windows command-line ceiling;
         // every real write today (loader, config, licence, worker Lua) is a
         // few KB and stays on the single-command path.
@@ -336,7 +344,7 @@ impl MumuCli {
     /// (`info_one`'s `adb_host_ip`/`adb_port`) and runs a real
     /// `adb install -r`, which streams the file over the ADB wire protocol
     /// instead of a shell string.
-    pub async fn install_apk(&self, index: u32, apk_path: &Path) -> Result<()> {
+    pub async fn install_apk(&self, index: SlotIndex, apk_path: &Path) -> Result<()> {
         let info = self.info_one(index).await?;
         let (Some(host), Some(port)) = (info.adb_host_ip, info.adb_port) else {
             return Err(MumuError::AdbEndpointUnavailable);
@@ -365,7 +373,7 @@ impl MumuCli {
     /// bundled `adb.exe` for a real `adb pull`, which handles whole
     /// directories natively instead of a size-fragile write_file/base64/sh
     /// round trip.
-    pub async fn pull(&self, index: u32, remote: &str, local: &Path) -> Result<()> {
+    pub async fn pull(&self, index: SlotIndex, remote: &str, local: &Path) -> Result<()> {
         let info = self.info_one(index).await?;
         let (Some(host), Some(port)) = (info.adb_host_ip, info.adb_port) else {
             return Err(MumuError::AdbEndpointUnavailable);
@@ -489,15 +497,15 @@ impl MumuCli {
 /// output shapes (see [`MumuCli::info`]): the multi-instance index-keyed
 /// map, and the bare single object MuMu emits when the result is exactly
 /// one instance.
-fn parse_info_output(raw: &str) -> Result<BTreeMap<u32, PlayerInfo>> {
+fn parse_info_output(raw: &str) -> Result<BTreeMap<SlotIndex, PlayerInfo>> {
     if let Ok(map) = serde_json::from_str::<std::collections::HashMap<String, PlayerInfo>>(raw) {
         return Ok(map
             .into_iter()
-            .filter_map(|(k, v)| k.parse::<u32>().ok().map(|i| (i, v)))
+            .filter_map(|(k, v)| k.parse::<SlotIndex>().ok().map(|i| (i, v)))
             .collect());
     }
     let one: PlayerInfo = serde_json::from_str(raw)?;
-    let Ok(i) = one.index.parse::<u32>() else {
+    let Ok(i) = one.index.parse::<SlotIndex>() else {
         return Err(MumuError::NonZeroExit {
             code: None,
             stderr: format!("info returned unparseable index {:?}", one.index),
@@ -528,14 +536,17 @@ mod tests {
     fn single_instance_bare_object_parses() {
         let map = parse_info_output(SINGLE_RAW).expect("bare object must parse");
         assert_eq!(map.len(), 1);
-        assert_eq!(map[&0].name, "omaggviw@o1");
+        assert_eq!(map[&SlotIndex::new(0)].name, "omaggviw@o1");
     }
 
     #[test]
     fn multi_instance_keyed_map_parses() {
         let raw = format!(r#"{{ "0": {SINGLE_RAW}, "3": {SINGLE_RAW} }}"#);
         let map = parse_info_output(&raw).expect("keyed map must parse");
-        assert_eq!(map.keys().copied().collect::<Vec<_>>(), vec![0, 3]);
+        assert_eq!(
+            map.keys().copied().collect::<Vec<_>>(),
+            vec![SlotIndex::new(0), SlotIndex::new(3)]
+        );
     }
 
     #[test]

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use super::idx::SlotIndex;
+
 /// Info returned by `mumu info` for a single VM slot.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PlayerInfo {
@@ -29,9 +31,9 @@ pub struct PlayerInfo {
 }
 
 impl PlayerInfo {
-    /// Parses `index` as a `u32`. Returns `0` if the string is malformed.
-    pub fn slot_index(&self) -> u32 {
-        self.index.parse().unwrap_or(0)
+    /// Parses `index` as a [`SlotIndex`]. Returns slot `0` if the string is malformed.
+    pub fn slot_index(&self) -> SlotIndex {
+        self.index.parse().unwrap_or(SlotIndex::new(0))
     }
 
     /// `true` when the MuMu process for this slot is running.

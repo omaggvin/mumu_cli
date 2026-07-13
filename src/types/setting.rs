@@ -130,7 +130,7 @@ impl NetBridgeIpMode {
 /// Build a slice and pass it to [`crate::MumuCli::setting_apply`]:
 ///
 /// ```ignore
-/// cli.setting_apply(0, &[
+/// cli.setting_apply(SlotIndex::new(0), &[
 ///     Setting::MaxFrameRate(15),
 ///     Setting::RendererMode(RendererMode::Vulkan),
 ///     Setting::SystemDiskReadonly(true),
