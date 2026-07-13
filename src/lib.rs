@@ -7,7 +7,11 @@ pub use types::{
     RendererStrategy, ResolutionMode, Setting, SimuKey, VmIndex,
 };
 
-use std::{collections::BTreeMap, path::{Path, PathBuf}, time::Duration};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 use tokio::process::Command;
 
 /// Async wrapper around the `MuMuManager.exe` CLI (`mumu` on PATH).
@@ -98,7 +102,8 @@ impl MumuCli {
     /// Run a [`ControlAction`] on one or more slots.
     pub async fn control(&self, vmindex: impl Into<VmIndex>, action: ControlAction) -> Result<()> {
         let idx = vmindex.into().to_arg();
-        self.run(&["control", "--vmindex", &idx, action.as_str()]).await?;
+        self.run(&["control", "--vmindex", &idx, action.as_str()])
+            .await?;
         Ok(())
     }
 
@@ -144,7 +149,8 @@ impl MumuCli {
     pub async fn clone_player(&self, vmindex: impl Into<VmIndex>, number: u32) -> Result<()> {
         let idx = vmindex.into().to_arg();
         let n = number.to_string();
-        self.run(&["clone", "--vmindex", &idx, "--number", &n]).await?;
+        self.run(&["clone", "--vmindex", &idx, "--number", &n])
+            .await?;
         Ok(())
     }
 
@@ -158,7 +164,8 @@ impl MumuCli {
     /// Rename slot `index` to `name`.
     pub async fn rename(&self, index: u32, name: &str) -> Result<()> {
         let i = index.to_string();
-        self.run(&["rename", "--vmindex", &i, "--name", name]).await?;
+        self.run(&["rename", "--vmindex", &i, "--name", name])
+            .await?;
         Ok(())
     }
 
@@ -257,9 +264,12 @@ impl MumuCli {
         let v = value.unwrap_or("__null__");
         self.run(&[
             "simulation",
-            "--vmindex", &idx,
-            "--simu_key", key.as_str(),
-            "--simu_value", v,
+            "--vmindex",
+            &idx,
+            "--simu_key",
+            key.as_str(),
+            "--simu_value",
+            v,
         ])
         .await?;
         Ok(())
@@ -282,7 +292,10 @@ impl MumuCli {
         let deadline = tokio::time::Instant::now() + READY_TIMEOUT;
         let mut redialed = false;
         loop {
-            let out = Command::new(adb).args(["-s", serial, "get-state"]).output().await?;
+            let out = Command::new(adb)
+                .args(["-s", serial, "get-state"])
+                .output()
+                .await?;
             let last = format!(
                 "{}{}",
                 String::from_utf8_lossy(&out.stdout).trim(),
@@ -299,7 +312,10 @@ impl MumuCli {
                 });
             }
             if !redialed && last.contains("offline") {
-                let _ = Command::new(adb).args(["disconnect", serial]).output().await;
+                let _ = Command::new(adb)
+                    .args(["disconnect", serial])
+                    .output()
+                    .await;
                 let _ = Command::new(adb).args(["connect", serial]).output().await;
                 redialed = true;
             }
@@ -440,14 +456,11 @@ impl MumuCli {
     }
 
     /// Apply settings from a UTF-8 JSON file (same format as `--all_writable` output).
-    pub async fn setting_from_file(
-        &self,
-        vmindex: impl Into<VmIndex>,
-        path: &Path,
-    ) -> Result<()> {
+    pub async fn setting_from_file(&self, vmindex: impl Into<VmIndex>, path: &Path) -> Result<()> {
         let idx = vmindex.into().to_arg();
         let p = path.to_string_lossy();
-        self.run(&["setting", "--vmindex", &idx, "--path", &p]).await?;
+        self.run(&["setting", "--vmindex", &idx, "--path", &p])
+            .await?;
         Ok(())
     }
 
@@ -456,7 +469,8 @@ impl MumuCli {
     /// Useful for inspecting what a slot currently has before applying changes.
     pub async fn setting_all_writable(&self, vmindex: impl Into<VmIndex>) -> Result<String> {
         let idx = vmindex.into().to_arg();
-        self.run_text(&["setting", "--vmindex", &idx, "--all_writable"]).await
+        self.run_text(&["setting", "--vmindex", &idx, "--all_writable"])
+            .await
     }
 
     /// Apply typed [`Setting`] values to a slot in a single invocation.
@@ -466,8 +480,7 @@ impl MumuCli {
         settings: &[Setting],
     ) -> Result<()> {
         let pairs: Vec<(&'static str, String)> = settings.iter().map(|s| s.as_pair()).collect();
-        let str_pairs: Vec<(&str, &str)> =
-            pairs.iter().map(|(k, v)| (*k, v.as_str())).collect();
+        let str_pairs: Vec<(&str, &str)> = pairs.iter().map(|(k, v)| (*k, v.as_str())).collect();
         self.setting_set(vmindex, &str_pairs).await
     }
 }
@@ -542,14 +555,20 @@ mod tests {
     fn write_file_large_chunks_reconstruct_content() {
         use base64::prelude::*;
         // ~80 KB of non-trivial bytes forces the chunked path.
-        let content: Vec<u8> = (0..80_000u32).map(|i| (i.wrapping_mul(31) % 251) as u8).collect();
+        let content: Vec<u8> = (0..80_000u32)
+            .map(|i| (i.wrapping_mul(31) % 251) as u8)
+            .collect();
         let budget = 28_000;
         let path = "/storage/emulated/0/Delta/big.bin";
         let cmds = MumuCli::write_file_cmds(path, &content, budget);
 
         assert!(cmds.len() > 2, "large content must chunk");
         for c in &cmds {
-            assert!(c.len() <= budget, "command exceeds budget: {} > {budget}", c.len());
+            assert!(
+                c.len() <= budget,
+                "command exceeds budget: {} > {budget}",
+                c.len()
+            );
         }
 
         // Replay the commands the way the device would: each chunk command is
@@ -561,13 +580,22 @@ mod tests {
         for (i, c) in echo_cmds.iter().enumerate() {
             let parts: Vec<&str> = c.split(' ').collect();
             assert_eq!(parts[0], "echo");
-            assert_eq!(parts[2], if i == 0 { ">" } else { ">>" }, "wrong redirect on chunk {i}");
+            assert_eq!(
+                parts[2],
+                if i == 0 { ">" } else { ">>" },
+                "wrong redirect on chunk {i}"
+            );
             b64.push_str(parts[1]);
         }
         assert!(decode_cmd.starts_with("base64 -d "));
         assert!(decode_cmd.contains(&format!("> {path}")));
 
-        let decoded = BASE64_STANDARD.decode(b64.as_bytes()).expect("reassembled base64 must decode");
-        assert_eq!(decoded, content, "chunked write must reconstruct the original bytes");
+        let decoded = BASE64_STANDARD
+            .decode(b64.as_bytes())
+            .expect("reassembled base64 must decode");
+        assert_eq!(
+            decoded, content,
+            "chunked write must reconstruct the original bytes"
+        );
     }
 }
