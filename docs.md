@@ -146,11 +146,11 @@ cli.write_file(s0, "/sdcard/script.lua", bytes).await?;
 // daemon to report the slot's endpoint as `device` first (up to 20s,
 // redialing a stuck `offline` entry once) — a freshly-booted instance
 // flaps `offline` for a few seconds.
-cli.install_apk(s0, Path::new("roblox.apk")).await?;
-cli.pull(s0, "/storage/emulated/0/Delta/Internals", Path::new("./cache")).await?;
+cli.install_apk(s0, Path::new("app.apk")).await?;
+cli.pull(s0, "/storage/emulated/0/Download/logs", Path::new("./cache")).await?;
 // Vital fact (verified on real hardware): pulling a directory nests the
 // source's basename under the destination — the call above lands at
-// ./cache/Internals/..., not ./cache/... directly. `pull` itself does no
+// ./cache/logs/..., not ./cache/... directly. `pull` itself does no
 // flattening; callers that want a flat destination handle it themselves.
 
 // Spoof device identity (pass None to clear)
@@ -159,7 +159,8 @@ cli.simulate(s0, SimuKey::AndroidId, None).await?;
 
 // Import / export .mumudata backups.
 // import semantics: see mumu_cli_docs.md's `import` section. Diff
-// info_all before/after for the new instance's index.
+// info_all before/after for the new instance's index. The MuMu UI's
+// restore-into-existing-slot flow has no CLI equivalent.
 cli.import(Path::new("backup.mumudata")).await?;
 cli.export(s0, Path::new("./backups"), Some("slot0"), true).await?;
 

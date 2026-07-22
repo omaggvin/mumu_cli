@@ -226,7 +226,7 @@ impl MumuCli {
         if one_shot.len() <= budget {
             return vec![one_shot];
         }
-        let tmp = format!("{remote_path}.omna_b64");
+        let tmp = format!("{remote_path}.mumucli_b64");
         // Room for `echo `, ` >> `, and the temp path in each chunk command.
         let chunk_len = budget.saturating_sub(tmp.len() + 16).max(1);
         let mut cmds = Vec::new();
@@ -517,11 +517,12 @@ fn parse_info_output(raw: &str) -> Result<BTreeMap<SlotIndex, PlayerInfo>> {
 mod tests {
     use super::*;
 
-    /// Verbatim `MuMuManager info --vmindex all` output from i9tjnr with a
-    /// single instance (2026-07-03) — a bare object, not an index-keyed map.
+    /// `MuMuManager info --vmindex all` output captured from a real
+    /// single-instance host (2026-07-03) — a bare object, not an index-keyed
+    /// map. Verbatim except `name`, redacted to a placeholder.
     const SINGLE_RAW: &str = r#"{
   "index": "0",
-  "name": "omaggviw@o1",
+  "name": "player-0",
   "is_main": true,
   "error_code": 0,
   "disk_size_bytes": 4067478846,
@@ -535,7 +536,7 @@ mod tests {
     fn single_instance_bare_object_parses() {
         let map = parse_info_output(SINGLE_RAW).expect("bare object must parse");
         assert_eq!(map.len(), 1);
-        assert_eq!(map[&SlotIndex::new(0)].name, "omaggviw@o1");
+        assert_eq!(map[&SlotIndex::new(0)].name, "player-0");
     }
 
     #[test]
@@ -555,10 +556,10 @@ mod tests {
 
     #[test]
     fn write_file_small_stays_single_command() {
-        let cmds = MumuCli::write_file_cmds("/storage/emulated/0/Delta/x", b"hello world", 28_000);
+        let cmds = MumuCli::write_file_cmds("/storage/emulated/0/dir/x", b"hello world", 28_000);
         assert_eq!(cmds.len(), 1);
         assert!(cmds[0].starts_with("echo "));
-        assert!(cmds[0].ends_with("| base64 -d > /storage/emulated/0/Delta/x"));
+        assert!(cmds[0].ends_with("| base64 -d > /storage/emulated/0/dir/x"));
     }
 
     #[test]
@@ -569,7 +570,7 @@ mod tests {
             .map(|i| (i.wrapping_mul(31) % 251) as u8)
             .collect();
         let budget = 28_000;
-        let path = "/storage/emulated/0/Delta/big.bin";
+        let path = "/storage/emulated/0/dir/big.bin";
         let cmds = MumuCli::write_file_cmds(path, &content, budget);
 
         assert!(cmds.len() > 2, "large content must chunk");

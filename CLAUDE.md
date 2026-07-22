@@ -25,6 +25,6 @@ No external services required; tests cover pure parsing/chunking logic against c
 ## Key MuMuManager quirks (verified on real hardware)
 
 - **import**: no import-into-slot concept — always creates ONE new instance; `--number`/`-n` is a repeat count, not an index (passing 10 makes ten copies). Diff `info_all` before/after to find the new instance. Canonical statement: `mumu_cli_docs.md`'s `import` section.
-- **info output shape-shifts** with result count: an index-keyed map for multiple instances, but one bare object when the result is exactly one instance (including `--vmindex all` on a single-instance host). `parse_info_output` accepts both.
+- **info output shape-shifts** with result count; `parse_info_output` accepts both shapes. Canonical statement: `docs.md`'s "Slot info" section.
 - **adb/sh subcommands vs bundled adb.exe**: `MumuManager adb`/`sh` go through a base64-through-shell pipeline (`write_file`) — fine for small payloads but can't stream a multi-hundred-MB APK or a whole directory. `install_apk`/`pull` instead shell directly to the MuMu-bundled `adb.exe` (found via `find_adb`) against the slot's own TCP adb endpoint, waiting for the daemon to report `device` (a fresh boot flaps `offline` for a few seconds).
-- **write_file chunking**: Windows caps a command line near 32 KB; `sh --cmd` fails ("error 206") past it. Below the cap: single `echo <base64> | base64 -d > path`. Above it: base64 streamed to a temp file in budgeted chunks (`echo >`/`>>`), decoded once.
+- **write_file chunking**: Windows caps a command line near 32 KB; `sh --cmd` fails ("error 206") past it. Canonical statement: `write_file`'s rustdoc (`src/lib.rs`).
