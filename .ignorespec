@@ -1,0 +1,6 @@
+git nc obsidian:
+@junk
+
+git:
+Cargo.lock
+.cargo/
