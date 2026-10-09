@@ -188,7 +188,8 @@ impl MumuCli {
 
     /// Write arbitrary bytes to `remote_path` on the Android filesystem of slot `index`.
     ///
-    /// Uses base64 encoding to avoid backslash-stripping in the `sh --cmd` pipeline.
+    /// Uses base64 encoding to preserve bytes in the `sh --cmd` pipeline.
+    /// Treats `remote_path` as a literal path, including spaces and shell characters.
     ///
     /// Windows caps a process command line near 32 KB, and `MuMuManager.exe`
     /// fails with "error 206" once `sh --cmd <one-shot>` crosses it — about
@@ -222,11 +223,12 @@ impl MumuCli {
     fn write_file_cmds(remote_path: &str, content: &[u8], budget: usize) -> Vec<String> {
         use base64::prelude::*;
         let encoded = BASE64_STANDARD.encode(content);
-        let one_shot = format!("echo {encoded} | base64 -d > {remote_path}");
+        let target = shell_quote(remote_path);
+        let one_shot = format!("echo {encoded} | base64 -d > {target}");
         if one_shot.len() <= budget {
             return vec![one_shot];
         }
-        let tmp = format!("{remote_path}.mumucli_b64");
+        let tmp = shell_quote(&format!("{remote_path}.mumucli_b64"));
         // Room for `echo `, ` >> `, and the temp path in each chunk command.
         let chunk_len = budget.saturating_sub(tmp.len() + 16).max(1);
         let mut cmds = Vec::new();
@@ -237,7 +239,7 @@ impl MumuCli {
             cmds.push(format!("echo {chunk} {redir} {tmp}"));
             first = false;
         }
-        cmds.push(format!("base64 -d {tmp} > {remote_path} && rm -f {tmp}"));
+        cmds.push(format!("base64 -d {tmp} > {target} && rm -f {tmp}"));
         cmds
     }
 
@@ -492,6 +494,11 @@ impl MumuCli {
     }
 }
 
+/// Quotes one literal argument for the Android shell.
+fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
 /// Parses `MuMuManager info` output into an index-keyed map, accepting both
 /// output shapes (see [`MumuCli::info`]): the multi-instance index-keyed
 /// map, and the bare single object MuMu emits when the result is exactly
@@ -559,7 +566,73 @@ mod tests {
         let cmds = MumuCli::write_file_cmds("/storage/emulated/0/dir/x", b"hello world", 28_000);
         assert_eq!(cmds.len(), 1);
         assert!(cmds[0].starts_with("echo "));
-        assert!(cmds[0].ends_with("| base64 -d > /storage/emulated/0/dir/x"));
+        assert!(cmds[0].ends_with("| base64 -d > '/storage/emulated/0/dir/x'"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn write_file_shell_round_trip_preserves_paths_and_bytes() {
+        struct TempDir(PathBuf);
+        impl Drop for TempDir {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+
+        let dir = TempDir(std::env::temp_dir().join(format!(
+            "mumu-cli-write-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        )));
+        std::fs::create_dir(&dir.0).unwrap();
+        let large: Vec<u8> = (0..80_000u32).map(|i| (i % 251) as u8).collect();
+        let contents: [&[u8]; 3] = [b"", b"hello\0world\n", &large];
+        let names = [
+            "plain.bin",
+            "file with spaces.bin",
+            "it's quoted.bin",
+            "literal;$HOME`echo unexpected`\n.bin",
+        ];
+        // Decode file operands through stdin so both BSD and GNU base64 work.
+        let base64_function = r#"base64() {
+    if [ "$#" -eq 2 ]; then
+        command base64 -d < "$2"
+    else
+        command base64 "$@"
+    fi
+}
+"#;
+        for name in names {
+            let path = dir.0.join(name);
+            let path = path.to_str().unwrap();
+            for content in contents {
+                let cmds = MumuCli::write_file_cmds(path, content, 28_000);
+                let mut script = format!("set -e\n{base64_function}");
+                for cmd in cmds {
+                    assert!(cmd.len() <= 28_000, "command exceeds budget");
+                    script.push_str(&cmd);
+                    script.push('\n');
+                }
+                let output = std::process::Command::new("/bin/sh")
+                    .args(["-c", &script])
+                    .output()
+                    .unwrap();
+                assert!(
+                    output.status.success(),
+                    "write failed for {name:?}: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                assert_eq!(std::fs::read(path).unwrap(), content, "path: {name:?}");
+                assert!(
+                    !Path::new(&format!("{path}.mumucli_b64")).exists(),
+                    "encoded temporary file remains"
+                );
+            }
+        }
+        assert_eq!(std::fs::read_dir(&dir.0).unwrap().count(), names.len());
     }
 
     #[test]
@@ -599,7 +672,7 @@ mod tests {
             b64.push_str(parts[1]);
         }
         assert!(decode_cmd.starts_with("base64 -d "));
-        assert!(decode_cmd.contains(&format!("> {path}")));
+        assert!(decode_cmd.contains(&format!("> '{path}'")));
 
         let decoded = BASE64_STANDARD
             .decode(b64.as_bytes())
